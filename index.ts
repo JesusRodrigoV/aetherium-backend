@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-app.use("/api", healthRoutes);
+app.use("/aetherium", healthRoutes);
 
 connectMongo()
   .then(() => {
