@@ -1,6 +1,6 @@
-import { PrismaClient } from "@prisma/client";
 import mongoose from "mongoose";
 import { logger } from "@/utils/logger";
+import { PrismaClient } from "generated/prisma";
 
 export const prisma = new PrismaClient();
 
