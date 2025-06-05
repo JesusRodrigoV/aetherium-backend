@@ -1,16 +1,91 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  directUrl  = env("DIRECT_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model usuario {
+  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  correo         String     @unique @db.VarChar(255)
+  contrasena     String     @db.VarChar(255)
+  creado_en      DateTime   @default(now()) @db.Timestamptz
+  actualizado_en DateTime   @updatedAt @db.Timestamptz
+  carpetas       carpeta[]  @relation("carpetasUsuario")
+  etiquetas      etiqueta[] @relation("etiquetasUsuario")
+  notas          nota[]     @relation("notasUsuario")
+
+  @@index([correo], map: "correo_usuario_idx")
+}
+
+model nota {
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  titulo           String          @db.VarChar(255)
+  creado_en        DateTime        @default(now()) @db.Timestamptz
+  actualizado_en   DateTime        @updatedAt @db.Timestamptz
+  usuarioId        String          @map("id_usuario") @db.Uuid
+  carpetaId        String?         @map("id_carpeta") @db.Uuid
+  esta_sincronizado Boolean        @default(false)
+  backlinks_origen backlink[]      @relation("origen")
+  backlinks_destino backlink[]     @relation("destino")
+  carpeta          carpeta?        @relation(fields: [carpetaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  autor            usuario         @relation("notasUsuario", fields: [usuarioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  nota_etiqueta    nota_etiqueta[]
+
+  @@index([carpetaId], map: "id_carpeta_nota_idx")
+  @@index([usuarioId], map: "id_usuario_nota_idx")
+}
+
+model carpeta {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre           String    @db.VarChar(100)
+  creado_en        DateTime  @default(now()) @db.Timestamptz
+  actualizado_en   DateTime  @updatedAt @db.Timestamptz
+  usuarioId        String    @map("id_usuario") @db.Uuid
+  carpetaPadreId   String?   @map("id_carpeta_padre") @db.Uuid
+  carpetaPadre     carpeta?  @relation("subcarpetas", fields: [carpetaPadreId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subcarpetas      carpeta[] @relation("subcarpetas")
+  usuario          usuario   @relation("carpetasUsuario", fields: [usuarioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  notas            nota[]
+
+  @@index([carpetaPadreId], map: "id_carpeta_padre_idx")
+  @@index([usuarioId], map: "id_usuario_carpeta_idx")
+}
+
+model etiqueta {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre        String          @db.VarChar(50)
+  creado_en     DateTime        @default(now()) @db.Timestamptz
+  usuarioId     String          @map("id_usuario") @db.Uuid
+  usuario       usuario         @relation("etiquetasUsuario", fields: [usuarioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  nota_etiqueta nota_etiqueta[]
+
+  @@unique([usuarioId, nombre], map: "etiqueta_usuario_nombre_unique")
+  @@index([usuarioId, nombre], map: "etiqueta_idx")
+}
+
+model nota_etiqueta {
+  notaId     String   @map("id_nota") @db.Uuid
+  etiquetaId String   @map("id_etiqueta") @db.Uuid
+  etiqueta   etiqueta @relation(fields: [etiquetaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  nota       nota     @relation(fields: [notaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([notaId, etiquetaId], map: "nota_etiqueta_pk")
+  @@index([notaId, etiquetaId], map: "nota_etiqueta_idx")
+}
+
+model backlink {
+  notaOrigenId  String   @map("id_nota_origen") @db.Uuid
+  notaDestinoId String   @map("id_nota_destino") @db.Uuid
+  creado_en     DateTime @default(now()) @db.Timestamptz
+  notaOrigen    nota     @relation("origen", fields: [notaOrigenId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  notaDestino   nota     @relation("destino", fields: [notaDestinoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([notaOrigenId, notaDestinoId], map: "backlink_pk")
+  @@index([notaOrigenId, notaDestinoId], map: "backlink_idx")
+  @@index([notaDestinoId], map: "id_nota_destino_idx")
 }
