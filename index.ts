@@ -1,7 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import { connectMongo } from "@/config/database";
-import { logger } from "@/utils/logger";
+import cookieParser from 'cookie-parser';
 import * as routes from "@/routes";
 
 dotenv.config();
@@ -10,8 +10,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+app.use(cookieParser());
 
-app.use("/aetherium", routes.healthRouter);
+app.use("/aetherium/", routes.healthRouter);
+app.use("/aetherium/auth", routes.authRouter);
 
 connectMongo()
   .then(() => {

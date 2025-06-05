@@ -10,58 +10,60 @@ datasource db {
 }
 
 model usuario {
-  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  correo         String     @unique @db.VarChar(255)
-  contrasena     String     @db.VarChar(255)
-  creado_en      DateTime   @default(now()) @db.Timestamptz
-  actualizado_en DateTime   @updatedAt @db.Timestamptz
-  carpetas       carpeta[]  @relation("carpetasUsuario")
-  etiquetas      etiqueta[] @relation("etiquetasUsuario")
-  notas          nota[]     @relation("notasUsuario")
+  id             String           @id(map: "usuario_pk") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  correo         String           @unique(map: "usuario_correo_unique") @db.VarChar(255)
+  contrasena     String           @db.VarChar(255)
+  creado_en      DateTime         @default(now()) @db.Timestamptz(6)
+  actualizado_en DateTime         @default(now()) @updatedAt @db.Timestamptz(6)
+  carpetas       carpeta[]        @relation("carpetasUsuario")
+  etiquetas      etiqueta[]       @relation("etiquetasUsuario")
+  notas          nota[]           @relation("notasUsuario")
+  refresh_tokens refresh_tokens[]
 
   @@index([correo], map: "correo_usuario_idx")
 }
 
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model nota {
-  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  titulo           String          @db.VarChar(255)
-  creado_en        DateTime        @default(now()) @db.Timestamptz
-  actualizado_en   DateTime        @updatedAt @db.Timestamptz
-  usuarioId        String          @map("id_usuario") @db.Uuid
-  carpetaId        String?         @map("id_carpeta") @db.Uuid
-  esta_sincronizado Boolean        @default(false)
-  backlinks_origen backlink[]      @relation("origen")
-  backlinks_destino backlink[]     @relation("destino")
-  carpeta          carpeta?        @relation(fields: [carpetaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  autor            usuario         @relation("notasUsuario", fields: [usuarioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  nota_etiqueta    nota_etiqueta[]
+  id                String          @id(map: "nota_pk") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  titulo            String          @db.VarChar(255)
+  creado_en         DateTime        @default(now()) @db.Timestamptz(6)
+  actualizado_en    DateTime        @default(now()) @updatedAt @db.Timestamptz(6)
+  usuarioId         String          @map("id_usuario") @db.Uuid
+  carpetaId         String?         @map("id_carpeta") @db.Uuid
+  esta_sincronizado Boolean         @default(false)
+  backlinks_destino backlink[]      @relation("destino")
+  backlinks_origen  backlink[]      @relation("origen")
+  carpeta           carpeta?        @relation(fields: [carpetaId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "nota_carpeta")
+  autor             usuario         @relation("notasUsuario", fields: [usuarioId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "nota_usuario")
+  nota_etiqueta     nota_etiqueta[]
 
   @@index([carpetaId], map: "id_carpeta_nota_idx")
   @@index([usuarioId], map: "id_usuario_nota_idx")
 }
 
 model carpeta {
-  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  nombre           String    @db.VarChar(100)
-  creado_en        DateTime  @default(now()) @db.Timestamptz
-  actualizado_en   DateTime  @updatedAt @db.Timestamptz
-  usuarioId        String    @map("id_usuario") @db.Uuid
-  carpetaPadreId   String?   @map("id_carpeta_padre") @db.Uuid
-  carpetaPadre     carpeta?  @relation("subcarpetas", fields: [carpetaPadreId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  subcarpetas      carpeta[] @relation("subcarpetas")
-  usuario          usuario   @relation("carpetasUsuario", fields: [usuarioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  notas            nota[]
+  id             String    @id(map: "carpeta_pk") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre         String    @db.VarChar(100)
+  creado_en      DateTime  @default(now()) @db.Timestamptz(6)
+  actualizado_en DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  usuarioId      String    @map("id_usuario") @db.Uuid
+  carpetaPadreId String?   @map("id_carpeta_padre") @db.Uuid
+  carpetaPadre   carpeta?  @relation("subcarpetas", fields: [carpetaPadreId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "carpeta_carpeta")
+  subcarpetas    carpeta[] @relation("subcarpetas")
+  usuario        usuario   @relation("carpetasUsuario", fields: [usuarioId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "carpeta_usuario")
+  notas          nota[]
 
   @@index([carpetaPadreId], map: "id_carpeta_padre_idx")
   @@index([usuarioId], map: "id_usuario_carpeta_idx")
 }
 
 model etiqueta {
-  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id            String          @id(map: "etiqueta_pk") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nombre        String          @db.VarChar(50)
-  creado_en     DateTime        @default(now()) @db.Timestamptz
+  creado_en     DateTime        @default(now()) @db.Timestamptz(6)
   usuarioId     String          @map("id_usuario") @db.Uuid
-  usuario       usuario         @relation("etiquetasUsuario", fields: [usuarioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario       usuario         @relation("etiquetasUsuario", fields: [usuarioId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "etiqueta_usuario")
   nota_etiqueta nota_etiqueta[]
 
   @@unique([usuarioId, nombre], map: "etiqueta_usuario_nombre_unique")
@@ -71,8 +73,8 @@ model etiqueta {
 model nota_etiqueta {
   notaId     String   @map("id_nota") @db.Uuid
   etiquetaId String   @map("id_etiqueta") @db.Uuid
-  etiqueta   etiqueta @relation(fields: [etiquetaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  nota       nota     @relation(fields: [notaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  etiqueta   etiqueta @relation(fields: [etiquetaId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "nota_etiqueta_etiqueta")
+  nota       nota     @relation(fields: [notaId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "nota_etiqueta_nota")
 
   @@id([notaId, etiquetaId], map: "nota_etiqueta_pk")
   @@index([notaId, etiquetaId], map: "nota_etiqueta_idx")
@@ -81,11 +83,23 @@ model nota_etiqueta {
 model backlink {
   notaOrigenId  String   @map("id_nota_origen") @db.Uuid
   notaDestinoId String   @map("id_nota_destino") @db.Uuid
-  creado_en     DateTime @default(now()) @db.Timestamptz
-  notaOrigen    nota     @relation("origen", fields: [notaOrigenId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  notaDestino   nota     @relation("destino", fields: [notaDestinoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  creado_en     DateTime @default(now()) @db.Timestamptz(6)
+  notaDestino   nota     @relation("destino", fields: [notaDestinoId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "backlink_nota_destino")
+  notaOrigen    nota     @relation("origen", fields: [notaOrigenId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "backlink_nota_origen")
 
   @@id([notaOrigenId, notaDestinoId], map: "backlink_pk")
   @@index([notaOrigenId, notaDestinoId], map: "backlink_idx")
   @@index([notaDestinoId], map: "id_nota_destino_idx")
+}
+
+model refresh_tokens {
+  id         String   @id(map: "refresh_tokens_pk") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  token      String   @db.VarChar(255)
+  expires_at DateTime @db.Timestamptz(6)
+  usuario_id String   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  usuario    usuario  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "refresh_tokens_usuario_fk")
+
+  @@index([token])
+  @@index([usuario_id])
 }
